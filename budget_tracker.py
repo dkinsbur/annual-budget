@@ -136,13 +136,26 @@ class BudgetTracker:
         for category in st.session_state.categories:
             budget = abs(st.session_state.current_budgets.get(category, 0))
             spent = abs(spending_data.get(category, 0))
+            expected_spend = budget * year_progress
             
-            if budget > 0:  # Only show categories with budget
-                expected_spend = budget * year_progress
+            # Handle percentage calculation
+            if budget > 0:
                 spent_percent = (spent / budget) * 100
-                expected_percent = year_progress * 100
-                
-                # Create category card
+            else:
+                # If budget is 0, we'll treat any spending as over budget
+                spent_percent = 100 if spent > 0 else 0
+            
+            expected_percent = year_progress * 100
+            
+            # Determine category status
+            if budget == 0:
+                if spent > 0:
+                    container = over_budget
+                    status = "Unbudgeted Spending"
+                else:
+                    container = on_track
+                    status = "No Budget / No Spending"
+            else:
                 if spent > expected_spend * 1.1:  # Over budget (>10% over expected)
                     container = over_budget
                     status = "Over Budget"
@@ -152,35 +165,43 @@ class BudgetTracker:
                 else:  # On track (within 10% of expected)
                     container = on_track
                     status = "On Track"
-                
-                with container:
-                    with st.expander(f"{category}", expanded=True):
-                        # Budget progress bar
-                        st.progress(min(spent_percent/100, 1.0))
-                        
-                        # Key metrics
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("Budget", f"₪{budget:,.0f}")
-                            st.metric("Spent", f"₪{spent:,.0f}")
-                        with col2:
-                            st.metric("Expected", f"₪{expected_spend:,.0f}")
+            
+            with container:
+                with st.expander(f"{category}", expanded=True):
+                    # Budget progress bar (cap at 100% for zero budgets)
+                    st.progress(min(spent_percent/100, 1.0))
+                    
+                    # Key metrics
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Budget", f"₪{budget:,.0f}")
+                        st.metric("Spent", f"₪{spent:,.0f}")
+                    with col2:
+                        st.metric("Expected", f"₪{expected_spend:,.0f}")
+                        if budget > 0:  # Only show over/under for non-zero budgets
                             remainder = expected_spend - spent
                             if abs(remainder) > 0:
                                 if remainder < 0:
                                     st.metric("Over by", f"₪{abs(remainder):,.0f}", delta_color="inverse")
                                 else:
                                     st.metric("Under by", f"₪{remainder:,.0f}")
-                        
-                        # Monthly average
-                        if current_month > 1:
-                            monthly_avg = spent / current_month
+                        elif spent > 0:  # For zero budget with spending
+                            st.metric("Over by", f"₪{spent:,.0f}", delta_color="inverse")
+                    
+                    # Monthly average (only show projection if there's a budget)
+                    if current_month > 1:
+                        monthly_avg = spent / current_month
+                        st.write(f"Monthly average: ₪{monthly_avg:,.0f}")
+                        if budget > 0:
                             yearly_projection = monthly_avg * 12
-                            st.write(f"Monthly average: ₪{monthly_avg:,.0f}")
                             if yearly_projection > budget:
                                 st.warning(f"Yearly projection: ₪{yearly_projection:,.0f} (Over budget)")
                             else:
                                 st.info(f"Yearly projection: ₪{yearly_projection:,.0f} (Within budget)")
+                        else:
+                            yearly_projection = monthly_avg * 12
+                            st.warning(f"Yearly projection: ₪{yearly_projection:,.0f} (No budget set)")
+
     def run(self):
         st.title("Budget Tracking Application")
         
