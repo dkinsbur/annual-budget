@@ -107,49 +107,80 @@ class BudgetTracker:
     def display_analysis(self, selected_year):
         st.header(f"Budget Analysis for {selected_year}")
         
+        # Calculate year progress
         year_progress = self.calculate_year_progress()
-        st.progress(year_progress)
-        st.text(f"Year Progress: {year_progress*100:.1f}%")
+        current_month = datetime.now().month
         
+        # Display year progress bar
+        st.subheader("Year Progress")
+        progress_col1, progress_col2 = st.columns([3, 1])
+        with progress_col1:
+            st.progress(year_progress)
+        with progress_col2:
+            st.write(f"{year_progress*100:.1f}% of year completed")
+        
+        # Get spending data for selected year
         spending_data = st.session_state.spending_data.get(selected_year, {})
         
+        # Create three columns for different status categories
+        over_budget, on_track, under_spending = st.columns(3)
+        
+        with over_budget:
+            st.subheader("🔴 Over Budget")
+        with on_track:
+            st.subheader("🟢 On Track")
+        with under_spending:
+            st.subheader("🟡 Under Spending")
+        
+        # Analyze each category
         for category in st.session_state.categories:
-            budget = st.session_state.current_budgets.get(category, 0)
+            budget = abs(st.session_state.current_budgets.get(category, 0))
             spent = abs(spending_data.get(category, 0))
-            expected = year_progress * budget
             
-            if budget > 0:
-                progress = (spent / budget) * 100
-                status = "Over Budget" if spent > expected else "Within Budget"
-                color = "red" if spent > expected else "green"
+            if budget > 0:  # Only show categories with budget
+                expected_spend = budget * year_progress
+                spent_percent = (spent / budget) * 100
+                expected_percent = year_progress * 100
                 
-                fig = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=progress,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': color},
-                        'steps': [
-                            {'range': [0, year_progress*100], 'color': "lightgray"}
-                        ],
-                    },
-                    title={'text': f"{category}"}
-                ))
+                # Create category card
+                if spent > expected_spend * 1.1:  # Over budget (>10% over expected)
+                    container = over_budget
+                    status = "Over Budget"
+                elif spent < expected_spend * 0.9:  # Under spending (<90% of expected)
+                    container = under_spending
+                    status = "Under Spending"
+                else:  # On track (within 10% of expected)
+                    container = on_track
+                    status = "On Track"
                 
-                fig.update_layout(height=200)
-                st.plotly_chart(fig, use_container_width=True)
-                
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Budget", f"₪{budget:,.0f}")
-                col2.metric("Spent", f"₪{spent:,.0f}")
-                col3.metric("Status", status)
-                
-                if spent > expected:
-                    st.warning(f"Over expected by ₪{spent-expected:,.0f}")
-                
-                st.divider()
-
+                with container:
+                    with st.expander(f"{category}", expanded=True):
+                        # Budget progress bar
+                        st.progress(min(spent_percent/100, 1.0))
+                        
+                        # Key metrics
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Budget", f"₪{budget:,.0f}")
+                            st.metric("Spent", f"₪{spent:,.0f}")
+                        with col2:
+                            st.metric("Expected", f"₪{expected_spend:,.0f}")
+                            remainder = expected_spend - spent
+                            if abs(remainder) > 0:
+                                if remainder < 0:
+                                    st.metric("Over by", f"₪{abs(remainder):,.0f}", delta_color="inverse")
+                                else:
+                                    st.metric("Under by", f"₪{remainder:,.0f}")
+                        
+                        # Monthly average
+                        if current_month > 1:
+                            monthly_avg = spent / current_month
+                            yearly_projection = monthly_avg * 12
+                            st.write(f"Monthly average: ₪{monthly_avg:,.0f}")
+                            if yearly_projection > budget:
+                                st.warning(f"Yearly projection: ₪{yearly_projection:,.0f} (Over budget)")
+                            else:
+                                st.info(f"Yearly projection: ₪{yearly_projection:,.0f} (Within budget)")
     def run(self):
         st.title("Budget Tracking Application")
         
