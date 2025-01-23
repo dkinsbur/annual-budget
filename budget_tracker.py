@@ -158,7 +158,29 @@ class BudgetTracker:
         # Calculate year progress
         year_progress = self.calculate_year_progress()
         current_month = datetime.now().month
-        
+
+        def create_progress_bar(spent_percent, year_progress_percent):
+            return f"""
+                <div style="position: relative; width: 100%; height: 20px; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                    <div style="width: {min(spent_percent, 100)}%; height: 100%; 
+                        background-color: {get_progress_color(spent_percent, year_progress_percent)}; 
+                        border-radius: 9999px;">
+                    </div>
+                    <div style="position: absolute; top: 0; left: {year_progress_percent}%; 
+                        width: 2px; height: 100%; background-color: black; 
+                        transform: translateX(-50%);">
+                    </div>
+                </div>
+            """
+        def get_progress_color(spent_percent, expected_percent):
+            if spent_percent > expected_percent * 1.1:
+                return "#ef4444"  # red for over budget
+            elif spent_percent < expected_percent * 0.9:
+                return "#eab308"  # yellow for under spending
+            else:
+                return "#22c55e"  # green for on track
+
+
         # Display year progress bar
         st.subheader("Year Progress")
         progress_col1, progress_col2 = st.columns([3, 1])
@@ -180,10 +202,22 @@ class BudgetTracker:
         with under_spending:
             st.subheader("🟡 תת ניצול")
         
+
+        def is_category_active(category, budget, spent):
+            # A category is considered active if it either:
+            # 1. Has a budget set for current year
+            # 2. Has actual spending in current year
+            return budget > 0 or spent > 0
+
         # Analyze each category
         for category in st.session_state.categories:
             budget = abs(st.session_state.current_budgets.get(category, 0))
             spent = abs(spending_data.get(category, 0))
+
+            # Skip inactive categories
+            if not is_category_active(category, budget, spent):
+                continue  # Skip to next category
+
             expected_spend = budget * year_progress
             
             # Handle percentage calculation
@@ -193,7 +227,7 @@ class BudgetTracker:
                 # If budget is 0, we'll treat any spending as over budget
                 spent_percent = 100 if spent > 0 else 0
             
-            expected_percent = year_progress * 100
+            year_progress_percent = expected_percent = year_progress * 100
             
             # Determine category status
             if budget == 0:
@@ -216,8 +250,9 @@ class BudgetTracker:
             
             with container:
                 with st.expander(f"{category}", expanded=True):
-                    # Budget progress bar (cap at 100% for zero budgets)
-                    st.progress(min(spent_percent/100, 1.0))
+                    # # Budget progress bar (cap at 100% for zero budgets)
+                    # st.progress(min(spent_percent/100, 1.0))
+                    st.markdown(create_progress_bar(spent_percent, year_progress_percent), unsafe_allow_html=True)
                     
                     # Key metrics
                     col1, col2 = st.columns(2)
