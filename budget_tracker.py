@@ -16,7 +16,9 @@ class BudgetTracker:
             st.session_state.spending_data = {}
         if 'years' not in st.session_state:
             st.session_state.years = []
-            
+
+        self.templates_file = "budget_templates.json"
+        self.load_templates_from_file()            
         self.excluded_categories = {
             'הכנסות לא תזרימיות',
             'הוצאות לא תזרימיות',
@@ -25,6 +27,40 @@ class BudgetTracker:
         }
         
         self.run()
+
+    def load_templates_from_file(self):
+        """Load templates from JSON file"""
+        try:
+            with open(self.templates_file, 'r', encoding='utf-8') as f:
+                self.templates = json.load(f)
+        except FileNotFoundError:
+            self.templates = {}
+            # Create the file if it doesn't exist
+            self.save_templates_to_file()
+
+    def save_templates_to_file(self):
+        """Save templates to JSON file"""
+        with open(self.templates_file, 'w', encoding='utf-8') as f:
+            json.dump(self.templates, f, ensure_ascii=False, indent=2)
+
+    def save_template(self, name):
+        """Save current budgets as a template"""
+        self.templates[name] = st.session_state.current_budgets.copy()
+        self.save_templates_to_file()
+        st.success(f"Template '{name}' saved successfully!")
+
+    def load_template(self, name):
+        """Load a template into current budgets"""
+        if name in self.templates:
+            st.session_state.current_budgets = self.templates[name].copy()
+            st.success(f"Template '{name}' loaded successfully!")
+
+    def delete_template(self, name):
+        """Delete a template"""
+        if name in self.templates:
+            del self.templates[name]
+            self.save_templates_to_file()
+            st.success(f"Template '{name}' deleted successfully!")
 
     def process_file(self, uploaded_file):
         try:
@@ -68,34 +104,46 @@ class BudgetTracker:
         progress = (now - start_of_year).total_seconds() / (365.25 * 24 * 60 * 60)
         return min(progress, 1.0)
 
-    def save_template(self, name):
-        templates = json.loads(st.session_state.get('templates', '{}'))
-        templates[name] = st.session_state.current_budgets
-        st.session_state.templates = json.dumps(templates)
-        st.success(f"Template '{name}' saved successfully!")
+    # def save_template(self, name):
+    #     templates = json.loads(st.session_state.get('templates', '{}'))
+    #     templates[name] = st.session_state.current_budgets
+    #     st.session_state.templates = json.dumps(templates)
+    #     st.success(f"Template '{name}' saved successfully!")
 
-    def load_template(self, name):
-        templates = json.loads(st.session_state.get('templates', '{}'))
-        if name in templates:
-            st.session_state.current_budgets = templates[name]
-            st.success(f"Template '{name}' loaded successfully!")
+    # def load_template(self, name):
+    #     templates = json.loads(st.session_state.get('templates', '{}'))
+    #     if name in templates:
+    #         st.session_state.current_budgets = templates[name]
+    #         st.success(f"Template '{name}' loaded successfully!")
 
     def display_budget_setup(self):
         st.header("Budget Setup")
         
+        # Template management section
+        st.subheader("Template Management")
         col1, col2 = st.columns(2)
+        
+        # Save template
         with col1:
             template_name = st.text_input("Template Name")
             if st.button("Save Template") and template_name:
                 self.save_template(template_name)
-        
-        with col2:
-            templates = json.loads(st.session_state.get('templates', '{}'))
-            if templates:
-                template_to_load = st.selectbox("Select Template", list(templates.keys()))
-                if st.button("Load Template"):
-                    self.load_template(template_to_load)
 
+        # Load and delete template
+        with col2:
+            if self.templates:
+                template_to_load = st.selectbox("Select Template", list(self.templates.keys()))
+                col2_1, col2_2 = st.columns(2)
+                with col2_1:
+                    if st.button("Load Template"):
+                        self.load_template(template_to_load)
+                with col2_2:
+                    if st.button("Delete Template", type="secondary"):
+                        self.delete_template(template_to_load)
+            else:
+                st.info("No saved templates yet")
+
+        # Category budgets section
         st.subheader("Category Budgets")
         for category in st.session_state.categories:
             st.session_state.current_budgets[category] = st.number_input(
@@ -126,11 +174,11 @@ class BudgetTracker:
         over_budget, on_track, under_spending = st.columns(3)
         
         with over_budget:
-            st.subheader("🔴 Over Budget")
+            st.subheader("🔴 חריגה")
         with on_track:
-            st.subheader("🟢 On Track")
+            st.subheader("🟢 בכיוון הנכון")
         with under_spending:
-            st.subheader("🟡 Under Spending")
+            st.subheader("🟡 תת ניצול")
         
         # Analyze each category
         for category in st.session_state.categories:
