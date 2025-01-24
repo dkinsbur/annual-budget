@@ -239,19 +239,19 @@ class BudgetTracker:
                     st.markdown(create_progress_bar(spent_percent, year_progress_percent, color), unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.metric("תקציב", f"₪{budget:,.0f}")
-                        st.metric("הוצאה", f"₪{spent:,.0f}")
+                        st.markdown(f'<div style="font-size: 0.875rem;">תקציב: ₪{budget:,.0f}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-size: 0.875rem;">הוצאה: ₪{spent:,.0f}</div>', unsafe_allow_html=True)
                     with col2:
-                        st.metric("צפוי", f"₪{expected_spend:,.0f}")
+                        st.markdown(f'<div style="font-size: 0.875rem;">צפוי: ₪{expected_spend:,.0f}</div>', unsafe_allow_html=True)
                         if budget > 0:
                             remainder = expected_spend - spent
                             if abs(remainder) > 0:
                                 if remainder < 0:
-                                    st.metric("חריגה", f"₪{abs(remainder):,.0f}", delta_color="inverse")
+                                    st.markdown(f'<div style="font-size: 0.875rem;">חריגה: ₪{abs(remainder):,.0f}</div>', unsafe_allow_html=True)
                                 else:
-                                    st.metric("פער חיובי", f"₪{remainder:,.0f}")
+                                    st.markdown(f'<div style="font-size: 0.875rem;">פער חיובי: ₪{remainder:,.0f}</div>', unsafe_allow_html=True)
                         elif spent > 0:
-                            st.metric("חריגה", f"₪{spent:,.0f}", delta_color="inverse")
+                            st.markdown(f'<div style="font-size: 0.875rem;">חריגה: ₪{spent:,.0f}</div>', unsafe_allow_html=True)
                     
                     if current_month > 1:
                         monthly_avg = spent / current_month
