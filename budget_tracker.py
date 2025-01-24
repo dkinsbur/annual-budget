@@ -115,8 +115,10 @@ class BudgetTracker:
             st.error(f"שגיאה בעיבוד הקובץ: {str(e)}")
             return False
 
-    def calculate_year_progress(self):
+    def calculate_year_progress(self, selected_year):
         now = datetime.now()
+        if now.year > selected_year:
+            return 1.0
         start_of_year = datetime(now.year, 1, 1)
         progress = (now - start_of_year).total_seconds() / (365.25 * 24 * 60 * 60)
         return min(progress, 1.0)
@@ -156,14 +158,14 @@ class BudgetTracker:
     def display_analysis(self, selected_year):
         st.header(f"ניתוח תקציב לשנת {selected_year}")
         
-        year_progress = self.calculate_year_progress()
+        year_progress = self.calculate_year_progress(int(selected_year))
         current_month = datetime.now().month
 
-        def create_progress_bar(spent_percent, year_progress_percent):
+        def create_progress_bar(spent_percent, year_progress_percent, color):
             return f"""
                 <div dir="rtl" style="position: relative; width: 100%; height: 20px; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden;">
                     <div style="position: absolute; right: 0; width: {min(spent_percent, 100)}%; height: 100%; 
-                        background-color: {get_progress_color(spent_percent, year_progress_percent)}; 
+                        background-color: {color}; 
                         border-radius: 9999px; transform-origin: right;">
                     </div>
                     <div style="position: absolute; top: 0; right: {year_progress_percent}%; 
@@ -171,14 +173,6 @@ class BudgetTracker:
                     </div>
                 </div>
             """
-
-        def get_progress_color(spent_percent, expected_percent):
-            if spent_percent > expected_percent * 1.1:
-                return "#ef4444"  # red for over budget
-            elif spent_percent < expected_percent * 0.9:
-                return "#eab308"  # yellow for under spending
-            else:
-                return "#22c55e"  # green for on track
 
         progress_col1, progress_col2 = st.columns([3, 1])
         with progress_col1:
@@ -215,23 +209,34 @@ class BudgetTracker:
                 spent_percent = 100 if spent > 0 else 0
             
             year_progress_percent = year_progress * 100
-            
+
+            COLORS = {
+                'red': "#ef4444",  # red for over budget
+                'yellow': "#eab308",  # yellow for under spending
+                'green': "#22c55e"  # green for on track
+            }
+        
             if budget == 0:
                 if spent > 0:
                     container = over_budget
+                    color = COLORS["red"]
                 else:
                     container = on_track
+                    color = COLORS["green"]
             else:
                 if spent > expected_spend * 1.1:
                     container = over_budget
+                    color = COLORS["red"]
                 elif spent < expected_spend * 0.9:
                     container = under_spending
+                    color = COLORS["yellow"]
                 else:
                     container = on_track
+                    color = COLORS["green"]
             
             with container:
                 with st.expander(f"{category}", expanded=True):
-                    st.markdown(create_progress_bar(spent_percent, year_progress_percent), unsafe_allow_html=True)
+                    st.markdown(create_progress_bar(spent_percent, year_progress_percent, color), unsafe_allow_html=True)
                     col1, col2 = st.columns(2)
                     with col1:
                         st.metric("תקציב", f"₪{budget:,.0f}")
