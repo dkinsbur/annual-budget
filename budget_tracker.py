@@ -37,6 +37,8 @@ class BudgetTracker:
             st.session_state.spending_data = {}
         if 'years' not in st.session_state:
             st.session_state.years = []
+        if 'active_tab' not in st.session_state:
+            st.session_state.active_tab = "analysis"
 
         self.templates_file = "budget_templates.json"
         self.load_templates_from_file()
@@ -47,6 +49,12 @@ class BudgetTracker:
             'הכנסות משתנות'
         }
         
+        # Try to load default template if exists
+        default_template = next((name for name in self.templates.keys() 
+                               if name.lower() == "default"), None)
+        if default_template:
+            self.load_template(default_template)
+            
         self.run()
 
     def load_templates_from_file(self):
@@ -261,7 +269,7 @@ class BudgetTracker:
                 st.success("הקובץ עובד בהצלחה!")
         
         if st.session_state.categories:
-            tab1, tab2 = st.tabs(["הגדרת תקציב", "ניתוח"])
+            tab2, tab1 = st.tabs(["ניתוח", "הגדרת תקציב"])
             
             with tab1:
                 self.display_budget_setup()
