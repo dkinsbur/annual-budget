@@ -6,7 +6,28 @@ import plotly.graph_objects as go
 
 class BudgetTracker:
     def __init__(self):
-        st.set_page_config(page_title="Budget Tracker", layout="wide")
+        st.set_page_config(page_title="מעקב תקציב", layout="wide")
+        
+        # Add CSS for RTL support
+        st.markdown("""
+            <style>
+                .stApp {
+                    direction: rtl;
+                }
+                .stButton button {
+                    direction: rtl;
+                }
+                .stSelectbox select {
+                    direction: rtl;
+                }
+                .stTextInput input {
+                    direction: rtl;
+                }
+                .stNumberInput input {
+                    direction: rtl;
+                }
+            </style>
+        """, unsafe_allow_html=True)
         
         if 'current_budgets' not in st.session_state:
             st.session_state.current_budgets = {}
@@ -18,7 +39,7 @@ class BudgetTracker:
             st.session_state.years = []
 
         self.templates_file = "budget_templates.json"
-        self.load_templates_from_file()            
+        self.load_templates_from_file()
         self.excluded_categories = {
             'הכנסות לא תזרימיות',
             'הוצאות לא תזרימיות',
@@ -29,50 +50,40 @@ class BudgetTracker:
         self.run()
 
     def load_templates_from_file(self):
-        """Load templates from JSON file"""
         try:
             with open(self.templates_file, 'r', encoding='utf-8') as f:
                 self.templates = json.load(f)
         except FileNotFoundError:
             self.templates = {}
-            # Create the file if it doesn't exist
             self.save_templates_to_file()
 
     def save_templates_to_file(self):
-        """Save templates to JSON file"""
         with open(self.templates_file, 'w', encoding='utf-8') as f:
             json.dump(self.templates, f, ensure_ascii=False, indent=2)
 
     def save_template(self, name):
-        """Save current budgets as a template"""
         self.templates[name] = st.session_state.current_budgets.copy()
         self.save_templates_to_file()
-        st.success(f"Template '{name}' saved successfully!")
+        st.success(f"תבנית '{name}' נשמרה בהצלחה!")
 
     def load_template(self, name):
-        """Load a template into current budgets"""
         if name in self.templates:
             st.session_state.current_budgets = self.templates[name].copy()
-            st.success(f"Template '{name}' loaded successfully!")
+            st.success(f"תבנית '{name}' נטענה בהצלחה!")
 
     def delete_template(self, name):
-        """Delete a template"""
         if name in self.templates:
             del self.templates[name]
             self.save_templates_to_file()
-            st.success(f"Template '{name}' deleted successfully!")
+            st.success(f"תבנית '{name}' נמחקה בהצלחה!")
 
     def process_file(self, uploaded_file):
         try:
-            # Read CSV with explicit encoding
             df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
-            
-            # Extract years
             df['year'] = df['שייך לתזרים חודש'].str[:4]
             years = sorted(df['year'].unique())
             st.session_state.years = years
             
-            # Extract categories and calculate spending
             spending_data = {}
             categories = set()
             
@@ -93,9 +104,7 @@ class BudgetTracker:
             return True
             
         except Exception as e:
-            st.error(f"Error processing file: {str(e)}")
-            st.write("DataFrame head:", df.head()) if 'df' in locals() else None
-            st.write("DataFrame columns:", df.columns) if 'df' in locals() else None
+            st.error(f"שגיאה בעיבוד הקובץ: {str(e)}")
             return False
 
     def calculate_year_progress(self):
@@ -104,47 +113,31 @@ class BudgetTracker:
         progress = (now - start_of_year).total_seconds() / (365.25 * 24 * 60 * 60)
         return min(progress, 1.0)
 
-    # def save_template(self, name):
-    #     templates = json.loads(st.session_state.get('templates', '{}'))
-    #     templates[name] = st.session_state.current_budgets
-    #     st.session_state.templates = json.dumps(templates)
-    #     st.success(f"Template '{name}' saved successfully!")
-
-    # def load_template(self, name):
-    #     templates = json.loads(st.session_state.get('templates', '{}'))
-    #     if name in templates:
-    #         st.session_state.current_budgets = templates[name]
-    #         st.success(f"Template '{name}' loaded successfully!")
-
     def display_budget_setup(self):
-        st.header("Budget Setup")
+        st.header("הגדרת תקציב")
         
-        # Template management section
-        st.subheader("Template Management")
+        st.subheader("ניהול תבניות")
         col1, col2 = st.columns(2)
         
-        # Save template
         with col1:
-            template_name = st.text_input("Template Name")
-            if st.button("Save Template") and template_name:
+            template_name = st.text_input("שם התבנית")
+            if st.button("שמור תבנית") and template_name:
                 self.save_template(template_name)
 
-        # Load and delete template
         with col2:
             if self.templates:
-                template_to_load = st.selectbox("Select Template", list(self.templates.keys()))
+                template_to_load = st.selectbox("בחר תבנית", list(self.templates.keys()))
                 col2_1, col2_2 = st.columns(2)
                 with col2_1:
-                    if st.button("Load Template"):
+                    if st.button("טען תבנית"):
                         self.load_template(template_to_load)
                 with col2_2:
-                    if st.button("Delete Template", type="secondary"):
+                    if st.button("מחק תבנית", type="secondary"):
                         self.delete_template(template_to_load)
             else:
-                st.info("No saved templates yet")
+                st.info("אין תבניות שמורות")
 
-        # Category budgets section
-        st.subheader("Category Budgets")
+        st.subheader("תקציב לפי קטגוריה")
         for category in st.session_state.categories:
             st.session_state.current_budgets[category] = st.number_input(
                 category,
@@ -153,25 +146,24 @@ class BudgetTracker:
             )
 
     def display_analysis(self, selected_year):
-        st.header(f"Budget Analysis for {selected_year}")
+        st.header(f"ניתוח תקציב לשנת {selected_year}")
         
-        # Calculate year progress
         year_progress = self.calculate_year_progress()
         current_month = datetime.now().month
 
         def create_progress_bar(spent_percent, year_progress_percent):
             return f"""
-                <div style="position: relative; width: 100%; height: 20px; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden;">
-                    <div style="width: {min(spent_percent, 100)}%; height: 100%; 
+                <div dir="rtl" style="position: relative; width: 100%; height: 20px; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                    <div style="position: absolute; right: 0; width: {min(spent_percent, 100)}%; height: 100%; 
                         background-color: {get_progress_color(spent_percent, year_progress_percent)}; 
-                        border-radius: 9999px;">
+                        border-radius: 9999px; transform-origin: right;">
                     </div>
-                    <div style="position: absolute; top: 0; left: {year_progress_percent}%; 
-                        width: 2px; height: 100%; background-color: black; 
-                        transform: translateX(-50%);">
+                    <div style="position: absolute; top: 0; right: {year_progress_percent}%; 
+                        width: 2px; height: 100%; background-color: black;">
                     </div>
                 </div>
             """
+
         def get_progress_color(spent_percent, expected_percent):
             if spent_percent > expected_percent * 1.1:
                 return "#ef4444"  # red for over budget
@@ -180,19 +172,14 @@ class BudgetTracker:
             else:
                 return "#22c55e"  # green for on track
 
-
-        # Display year progress bar
-        st.subheader("Year Progress")
         progress_col1, progress_col2 = st.columns([3, 1])
         with progress_col1:
             st.progress(year_progress)
         with progress_col2:
-            st.write(f"{year_progress*100:.1f}% of year completed")
+            st.write(f"{year_progress*100:.1f}% מהשנה הושלם")
         
-        # Get spending data for selected year
         spending_data = st.session_state.spending_data.get(selected_year, {})
         
-        # Create three columns for different status categories
         over_budget, on_track, under_spending = st.columns(3)
         
         with over_budget:
@@ -201,100 +188,80 @@ class BudgetTracker:
             st.subheader("🟢 בכיוון הנכון")
         with under_spending:
             st.subheader("🟡 תת ניצול")
-        
 
         def is_category_active(category, budget, spent):
-            # A category is considered active if it either:
-            # 1. Has a budget set for current year
-            # 2. Has actual spending in current year
             return budget > 0 or spent > 0
 
-        # Analyze each category
         for category in st.session_state.categories:
             budget = abs(st.session_state.current_budgets.get(category, 0))
             spent = abs(spending_data.get(category, 0))
 
-            # Skip inactive categories
             if not is_category_active(category, budget, spent):
-                continue  # Skip to next category
+                continue
 
             expected_spend = budget * year_progress
             
-            # Handle percentage calculation
             if budget > 0:
                 spent_percent = (spent / budget) * 100
             else:
-                # If budget is 0, we'll treat any spending as over budget
                 spent_percent = 100 if spent > 0 else 0
             
-            year_progress_percent = expected_percent = year_progress * 100
+            year_progress_percent = year_progress * 100
             
-            # Determine category status
             if budget == 0:
                 if spent > 0:
                     container = over_budget
-                    status = "Unbudgeted Spending"
                 else:
                     container = on_track
-                    status = "No Budget / No Spending"
             else:
-                if spent > expected_spend * 1.1:  # Over budget (>10% over expected)
+                if spent > expected_spend * 1.1:
                     container = over_budget
-                    status = "Over Budget"
-                elif spent < expected_spend * 0.9:  # Under spending (<90% of expected)
+                elif spent < expected_spend * 0.9:
                     container = under_spending
-                    status = "Under Spending"
-                else:  # On track (within 10% of expected)
+                else:
                     container = on_track
-                    status = "On Track"
             
             with container:
                 with st.expander(f"{category}", expanded=True):
-                    # # Budget progress bar (cap at 100% for zero budgets)
-                    # st.progress(min(spent_percent/100, 1.0))
                     st.markdown(create_progress_bar(spent_percent, year_progress_percent), unsafe_allow_html=True)
-                    
-                    # Key metrics
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.metric("Budget", f"₪{budget:,.0f}")
-                        st.metric("Spent", f"₪{spent:,.0f}")
+                        st.metric("תקציב", f"₪{budget:,.0f}")
+                        st.metric("הוצאה", f"₪{spent:,.0f}")
                     with col2:
-                        st.metric("Expected", f"₪{expected_spend:,.0f}")
-                        if budget > 0:  # Only show over/under for non-zero budgets
+                        st.metric("צפוי", f"₪{expected_spend:,.0f}")
+                        if budget > 0:
                             remainder = expected_spend - spent
                             if abs(remainder) > 0:
                                 if remainder < 0:
-                                    st.metric("Over by", f"₪{abs(remainder):,.0f}", delta_color="inverse")
+                                    st.metric("חריגה", f"₪{abs(remainder):,.0f}", delta_color="inverse")
                                 else:
-                                    st.metric("Under by", f"₪{remainder:,.0f}")
-                        elif spent > 0:  # For zero budget with spending
-                            st.metric("Over by", f"₪{spent:,.0f}", delta_color="inverse")
+                                    st.metric("פער חיובי", f"₪{remainder:,.0f}")
+                        elif spent > 0:
+                            st.metric("חריגה", f"₪{spent:,.0f}", delta_color="inverse")
                     
-                    # Monthly average (only show projection if there's a budget)
                     if current_month > 1:
                         monthly_avg = spent / current_month
-                        st.write(f"Monthly average: ₪{monthly_avg:,.0f}")
+                        st.write(f"ממוצע חודשי: ₪{monthly_avg:,.0f}")
+                        yearly_projection = monthly_avg * 12
                         if budget > 0:
-                            yearly_projection = monthly_avg * 12
                             if yearly_projection > budget:
-                                st.warning(f"Yearly projection: ₪{yearly_projection:,.0f} (Over budget)")
+                                st.warning(f"תחזית שנתית: ₪{yearly_projection:,.0f} (מעל התקציב)")
                             else:
-                                st.info(f"Yearly projection: ₪{yearly_projection:,.0f} (Within budget)")
+                                st.info(f"תחזית שנתית: ₪{yearly_projection:,.0f} (במסגרת התקציב)")
                         else:
-                            yearly_projection = monthly_avg * 12
-                            st.warning(f"Yearly projection: ₪{yearly_projection:,.0f} (No budget set)")
+                            st.warning(f"תחזית שנתית: ₪{yearly_projection:,.0f} (ללא תקציב)")
 
     def run(self):
-        st.title("Budget Tracking Application")
+        st.title("מעקב תקציב")
         
         if not st.session_state.categories:
-            uploaded_file = st.file_uploader("Upload your transaction CSV file", type=['csv'])
+            uploaded_file = st.file_uploader("העלה קובץ CSV של עסקאות", type=['csv'])
             if uploaded_file and self.process_file(uploaded_file):
-                st.success("File processed successfully!")
+                st.success("הקובץ עובד בהצלחה!")
         
         if st.session_state.categories:
-            tab1, tab2 = st.tabs(["Budget Setup", "Analysis"])
+            tab1, tab2 = st.tabs(["הגדרת תקציב", "ניתוח"])
             
             with tab1:
                 self.display_budget_setup()
@@ -302,7 +269,7 @@ class BudgetTracker:
             with tab2:
                 if st.session_state.years:
                     selected_year = st.selectbox(
-                        "Select Year",
+                        "בחר שנה",
                         st.session_state.years,
                         index=len(st.session_state.years)-1
                     )
